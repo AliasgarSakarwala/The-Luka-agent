@@ -148,53 +148,56 @@ Reply with one word only: END or CONTINUE."""
 
 def add_signoff(response: str) -> str:
     """Add a signoff to the response."""
-    base = (response or "").strip()
+    base = (response or "").strip() #If response is empty, return empty string else strip whitespace around response
     if not base:
-        return SIGNOFF_TEXT
+        return SIGNOFF_TEXT #Sign off text defined at the top
 
     lowered = base.lower()
     if "hvala and see you" in lowered or SIGNOFF_TEXT.lower() in lowered:
-        return base
+        return base #If the base string contains "hvala and see you" or the sign off text, return the base string
 
-    return f"{base} {SIGNOFF_TEXT}"
+    return f"{base} {SIGNOFF_TEXT}"  #Else return the base string with the sign off text appended to it.
 
-
+#Everything we have learned so far in this file, it all comes down to this function. 
+#MemoryStore asnd Conversation are objects that are imported from the memory_store.py and conversations.py files respectively.
+#So Conversation and MemoryStore can have multiple attributers which we can access by their object classifications
 def respond(memory: MemoryStore, conversation: Conversation, user_message: str) -> str:
     """Run one turn of the agent, add it to the conversation, and mark the conversation ended if it is over."""
     if conversation.ended:
-        raise ValueError("Conversation has already ended and cannot accept new messages.")
+        raise ValueError("Conversation has already ended and cannot accept new messages.") #If the conversation is ended, raise an error because we cannot converse anymore
 
-    cleaned_message = (user_message or "").strip()
+    cleaned_message = (user_message or "").strip() #The user message is cleaned by strip or is an emptyy string, which in the next line will raise an error
     if not cleaned_message:
         raise ValueError("User message cannot be empty.")
 
-    history = list(conversation.turns)
-    ending = should_end(cleaned_message, history)
+    history = list(conversation.turns) #The history is a list of dictionaries containing the previous messages, we created this list in the conversations.py file.
+    ending = should_end(cleaned_message, history) #Gets a booleaan value to confirm if the conversation should end or not.
 
-    if ending and _is_pure_farewell(cleaned_message):
-        retrieved_chunks: list[dict] = []
+    if ending and _is_pure_farewell(cleaned_message): #If the conversation should end and the user is explicitly saying goodbye
+        retrieved_chunks: list[dict] = [] #Then we set the retrieved_chunks to an empty list. 
         content_plan = (
             "- Warmly thank the user for the conversation and wish them well in Luka Dončić's relaxed voice."
-        )
+        ) #content plan is a string that shows what Lukas reply is supposed to be before we stylize it to his voice
         reply = "It was great talking with you, man."
         declined = False
-    elif out_of_scope(cleaned_message, history):
-        retrieved_chunks = []
+    elif out_of_scope(cleaned_message, history):  #This method was imported from guardrails.py file. It checks if the user message is out of scope or not.
+        retrieved_chunks = [] #Then we set the retrieved_chunks to an empty list. 
         content_plan = "- Decline out-of-scope or post-cutoff question in Luka Dončić's voice."
-        reply = decline(cleaned_message)
-        declined = True
+        reply = decline(cleaned_message) #This method was imported from guardrails.py file. It declines the user message in Luka's voice.
+        declined = True #Then we set the declined to True.
     else:
-        step = content_step(memory=memory, user_message=cleaned_message, history=history)
-        retrieved_chunks = step.get("retrieved_chunks", [])
+        step = content_step(memory=memory, user_message=cleaned_message, history=history) #contet step method was imported from content_module.py file where it retrives
+        #memory chunks and asks the LLM to create a content plan (turn the chunks into a response)
+        retrieved_chunks = step.get("retrieved_chunks", []) #Python syntax for get a list otherwise return an empty list.
         content_plan = step.get("content_plan", "")
-        reply = stylize(content_plan)
-        declined = False
+        reply = stylize(content_plan) #Stylize then styles the response in Luka's voice.
+        declined = False #Then we set the declined to False.
 
     if ending:
         reply = add_signoff(reply)
         conversation.ended = True
 
-    conversation.turns.append(
+    conversation.turns.append(  #After the message was generated, we append it to our conversaiton list 
         {
             "role": "user",
             "content": cleaned_message,
@@ -209,5 +212,5 @@ def respond(memory: MemoryStore, conversation: Conversation, user_message: str) 
             "declined": declined,
         }
     )
-    save_conversation(conversation)
+    save_conversation(conversation) #Finally we save the conversation and return the reply to the user.
     return reply
