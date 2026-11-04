@@ -45,3 +45,46 @@ def _load_dotenv() -> None: #Function responsible for loadiing the environment v
 
 _load_dotenv() #Module initialization function to load the environment variables from the .env file.
 
+_client: genai.Client | None = None #initializing the client to None, which will be set to a Gemini client object later.
+
+
+def _get_client() -> genai.Client:
+    """Return a singleton Gemini client configured from environment variables."""
+    global _client #This is a global variable that is used to store the client object. Hence any changes to it will be reflected globally to the above definittion too
+    if _client is None:
+        _load_dotenv()
+        api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") #If the client is not found, get the API key
+        if not api_key:
+            raise RuntimeError(
+                "Set GEMINI_API_KEY or GOOGLE_API_KEY in your environment or .env file."
+            )
+        _client = genai.Client(api_key=api_key) #set the client to the Gemini client object using the API key.
+    return _client
+
+
+def query_llm(prompt: str, temperature: float = 0.0) -> str:
+    """Send a prompt to Gemini and return the raw string response."""
+    client = _get_client() #get the client object using the above function
+    config = types.GenerateContentConfig( #creating a config object to configure the model's behavior
+        temperature=temperature,
+        automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True), #disable automatic function calling, which is calling other tools like a weather API
+
+    )
+
+    delay = 3.0 #Add delay to the response to avoid overwhelming the model.
+    for attempt in range(6): #We attempt 6 times to generate the response, if it fails, we raise an error.
+        try:
+            response = client.models.generate_content( #Generate the response from the model using the prompt, model and config
+                model=MODEL_NAME,
+                contents=prompt,
+                config=config,
+            )
+            return (response.text or "").strip() #Return the response as a string, stripping any whitespace around it.
+        except errors.APIError as exc: #Catch an error if any occur
+            status_code = getattr(exc, "code", None) #get the error status code
+            if status_code in (429, 503) and attempt < 5: #If the error code is 429 (rate limit error) or 503 (service unavailable), we sleep for the delay and try again.
+                time.sleep(delay)
+                delay *= 2.0
+                continue
+            raise #if we are past the 5 attempts, we raise an error and return an empty string.
+    return ""
