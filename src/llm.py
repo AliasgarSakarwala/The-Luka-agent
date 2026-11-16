@@ -74,7 +74,7 @@ def query_llm(prompt: str, temperature: float = 0.0) -> str:
     delay = 3.0 #Add delay to the response to avoid overwhelming the model.
     for attempt in range(6): #We attempt 6 times to generate the response, if it fails, we raise an error.
         try:
-            response = client.models.generate_content( #Generate the response from the model using the prompt, model and config
+            response = client.models.generate_content( #Generate the response frzom the model using the prompt, model and config
                 model=MODEL_NAME,
                 contents=prompt,
                 config=config,
