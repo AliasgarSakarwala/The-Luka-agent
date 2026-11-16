@@ -1,0 +1,7 @@
+# External dependencies for the Luka Dončić Celebrity Agent
+google-genai
+fastembed
+numpy
+fastapi
+uvicorn
+pydantic
